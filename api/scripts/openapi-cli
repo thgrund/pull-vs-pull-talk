@@ -1,0 +1,8 @@
+#!/usr/bin/env node
+
+/**
+ * Export openapi cli bin because of clash with openapi-typescript-codegen
+ *
+ * Used in package.json scripts
+ */
+module.exports = require("@redocly/openapi-cli/lib");

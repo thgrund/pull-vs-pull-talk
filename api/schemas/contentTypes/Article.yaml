@@ -1,0 +1,23 @@
+type: object
+description: Der komplette Artikel mit ihrem Inhalt
+required: [content]
+properties:
+  title:
+    type: string
+    description: >
+      Titel im Artikelkopf
+  teasertext:
+    type: string
+    description: >
+      Dieser Text wird unterhalb des Titels angezeigt und auch auf der der Homepage 
+      bei der Einbindung eines Teasers
+  isBreakingNews:
+    type: boolean
+  content:
+    type: array
+    description: >
+      Komponenten mit dem Dokumenteninhalt.
+    items:
+      anyOf:
+        - $ref: "../components/Paragraph.yaml"
+        - $ref: "../components/Youtube.yaml"

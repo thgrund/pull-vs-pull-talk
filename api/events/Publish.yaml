@@ -1,0 +1,56 @@
+post:
+  tags:
+    - Events
+  summary: Publizierung eines Dokuments
+  description: Ein Dokument wurde publiziert.
+  operationId: eventDocumentPublished
+  responses:
+    200:
+      description: Das komplette Dokument
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "../schemas/contentTypes/Document.yaml"
+        message-attributes/json:
+          schema:
+            type: object
+            required:
+              - contentType
+              - documentId
+              - operation
+              - recipient
+              - origin
+            properties:
+              contentType:
+                description: Dokumententyp
+                type: string
+                enum:
+                  - article
+                  - author
+                  - externalLink
+                example: article
+              documentId:
+                description: >
+                  Id ist ein einzigartiger Identifier
+                type: string
+                enum:
+                  - "3124"
+              operation:
+                description: Mögliche Operationen auf die man lauschen kann
+                enum:
+                  - publish
+                  - unpublish
+                  - update
+                type: string
+                example: publish
+              recipient:
+                description: Mögliche Subscriber
+                enum:
+                  - all
+                  - app
+                  - web
+                type: string
+                example: all
+    418:
+      description: (Platzhalter - Events haben keinen Status Code)

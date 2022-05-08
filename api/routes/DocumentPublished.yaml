@@ -1,0 +1,31 @@
+post:
+  tags:
+    - Internal
+  summary: Receives a webhook event
+  description: Erhält ein Dokument, wandelt in Ausgabeformat um und publiziert das Ergebnis über SNS.
+  operationId: documentPublished
+  responses:
+    200:
+      description: Returns information about the SNS entry
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              statusCode:
+                description: Status code of publish operation
+                type: number
+                example: 200
+              body:
+                description: Body of the publish operation
+                type: string
+                example: '{"$metadata":{"httpStatusCode":200,"requestId":"95ad3999-c13c-4399-878f-8903e3e5f328","attempts":1,"totalRetryDelay":0},"Entries":[{"EventId":"4231da73-c966-daf6-9c57-2a8089117d9d"}],"FailedEntryCount":0}'
+    422:
+      description: In case of a malformed event or communication failure
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string

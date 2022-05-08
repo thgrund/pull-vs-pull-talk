@@ -1,0 +1,16 @@
+# Not directly exposed but wrapped in various articleTeaser "formats"
+# (articleTeaserL, articleTeaserXL, articleRecommendation)
+type: object
+required:
+  - teaser
+properties:
+  teaser:
+    type: object
+    description: Teaser ist eine Referenz auf ein anderes Dokument (Artikel, Embed oder Include Modul)
+    required:
+      - documentId
+    properties:
+      documentId:
+        type: string
+        example: "3682"
+        description: Document Id

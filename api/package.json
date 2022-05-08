@@ -1,0 +1,35 @@
+{
+  "name": "example-api",
+  "version": "1.0.0",
+  "description": "Distribution example Documentation",
+  "engines": {
+    "node": "14",
+    "npm": ">=7"
+  },
+  "volta": {
+    "node": "14.17.6",
+    "npm": "7.24.2"
+  },
+  "files": [
+    "lib/**/*.js",
+    "lib/**/*.ts"
+  ],
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "clean": "rm -rf generated lib index.ts package *.tgz",
+    "start": "npx @redocly/openapi-cli preview-docs api.yaml --port 8001",
+    "lint": "npx @redocly/openapi-cli lint api.yaml",
+    "bundle": "scripts/openapi-cli bundle ./api.yaml --output ./api-bundle.yaml",
+    "build": "npm run clean && npm run bundle && npm run generate:html && cp ./generated/html/index.html ../docs/ && npm run generate:types && npx tsc -p ./tsconfig.lib.json",
+    "generate:html": "redoc-cli bundle api.yaml -o generated/html/index.html",
+    "generate:types": "npx ts-node build-types.ts && npx prettier --write \"./**/*.ts\" && ts-node scripts/generateIndex.ts"
+  },
+  "devDependencies": {
+    "@redocly/openapi-cli": "^1.0.0-beta.85",
+    "openapi-typescript-codegen": "^0.20.1",
+    "redoc-cli": "0.13.8",
+    "ts-node": "^9.1.1",
+    "typescript": "^4.5.5"
+  }
+}

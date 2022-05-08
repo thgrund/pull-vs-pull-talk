@@ -1,0 +1,7 @@
+# Api package
+generated/lib
+generated/html
+lib
+index.ts
+package
+node_modules

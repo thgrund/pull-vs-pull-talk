@@ -1,0 +1,51 @@
+openapi: 3.0.3
+
+info:
+  title: Distribution API Gateway Definition
+  description: Hier findet sich die (gekürzte) API Gateway Definition.
+  version: none
+  license:
+    name: Unlicensed
+    url: none
+
+servers:
+  - url: https://distribution.integration.internal.szdm.io
+
+paths:
+  /document/{livingdocsId}:
+    get:
+      operationId: documentGet
+      security:
+        - ApiKeyAuth: []
+      x-amazon-apigateway-integration:
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:lido-distribution-documentGet/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "never"
+        httpMethod: "POST"
+        contentHandling: "CONVERT_TO_TEXT"
+        type: "aws_proxy"
+  /documentPublished:
+    post:
+      operationId: documentPublished
+      parameters:
+        - name: documentId
+          description: The ID of the LivingDocs document to retrieve.
+          in: path
+      x-amazon-apigateway-integration:
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:lido-distribution-documentPublished/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "never"
+        httpMethod: "POST"
+        contentHandling: "CONVERT_TO_TEXT"
+        type: "aws_proxy"
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      name: x-api-key
+      description: Authentication method to get access to egress resources.
+      type: apiKey
+      in: header

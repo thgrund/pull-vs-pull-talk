@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig",
+  "compilerOptions": {
+    "outDir": "./lib",
+    "declaration": true
+  },
+  "include": ["./generated/index.d.ts"],
+  "exclude": ["node_modules/**/*"]
+}

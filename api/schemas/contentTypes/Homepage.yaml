@@ -1,0 +1,13 @@
+type: object
+required: [content, metadata, systemdata]
+properties:
+  title:
+    type: string
+    description: Titel der Homepage
+  teasers:
+    type: array
+    description: >
+      Komponenten mit dem Dokumenteninhalt.
+    items:
+      anyOf:
+        - $ref: "../components/Teaser.yaml"

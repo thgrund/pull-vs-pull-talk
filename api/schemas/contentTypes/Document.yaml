@@ -1,0 +1,5 @@
+type: object
+description: The full document with metadata, content and resolved references
+oneOf:
+  - $ref: "./Article.yaml"
+  - $ref: "./Homepage.yaml"

@@ -1,0 +1,45 @@
+openapi: 3.0.3
+
+info:
+  title: Distribution
+  description: Hier findet sich die API Dokumentation der Distribution.
+  version: 1.0.0
+  license:
+    name: Unlicensed
+    url: "http://localhost"
+
+servers:
+  - url: "localhost"
+
+paths:
+  "/document/{id}":
+    $ref: "routes/Document.yaml"
+  /documentPublished:
+    $ref: "routes/DocumentPublished.yaml"
+tags:
+  - name: Events
+    description: 'Die Distribution publiziert Events über ein SNS Topic. Eine
+      Subscription auf dieses Topic ist **nur bestimmten AWS Accounts** erlaubt.
+      Um einen AWS Account freizuschalten melde dich beim Lido CMS Team.
+      <br><br>
+      Events werden mit bestimmten [message
+      attributes](https://docs.aws.amazon.com/sns/latest/dg/sns-message-attributes.html)
+      publiziert. Diese Attribute finden sich in der Dokumentation unter
+      "Response samples -> sns-message-attributes/json" (es handelt sich hier
+      auch nicht wirklich um "Webhook"s. Das Dokumentationstool unterstützt
+      keine SNS events, deshalb mussten wir ein bisschen kreativ werden).'
+  - name: REST
+    description: REST API die in erster Linie bei der Entwicklung unterstützen soll.
+  - name: Internal
+    description: Interne Schnittstellen für die Kommunikation zwischen Livingdocs und der Distribution.
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      name: x-api-key
+      description: Für die Kommunikation mit der REST API wird ein API Key
+        benötigt.
+      type: apiKey
+      in: header
+x-webhooks:
+  publish:
+    $ref: "events/Publish.yaml"

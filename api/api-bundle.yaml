@@ -1,0 +1,2254 @@
+openapi: 3.0.3
+info:
+  title: Livingdocs Distribution
+  description: Hier findet sich die API Dokumentation der Distribution.
+  version: 9.0.0
+  license:
+    name: Unlicensed
+    url: http://localhost
+servers:
+  - url: https://distribution.integration.internal.szdm.io
+paths:
+  /document/{livingdocsId}:
+    parameters:
+      - $ref: "#/components/parameters/LivingdocsId"
+    get:
+      tags:
+        - REST
+      summary: Get a single document by its Livingdocs Id
+      security:
+        - ApiKeyAuth: []
+      operationId: documentGet
+      responses:
+        "200":
+          description: The full document with metadata, content and resolved references
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Document"
+        "404":
+          description: The requested document does not exist.
+  /documentPublished:
+    post:
+      tags:
+        - Internal
+      summary: Receives a Livingdocs webhook event
+      description: >-
+        Erhält ein Dokument aus Livingdocs, wandelt in Ausgabeformat um und
+        publiziert das Ergebnis über SNS.
+      operationId: documentPublished
+      responses:
+        "200":
+          description: Returns information about the SNS entry
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    description: Status code of publish operation
+                    type: number
+                    example: 200
+                  body:
+                    description: Body of the publish operation
+                    type: string
+                    example: >-
+                      {"$metadata":{"httpStatusCode":200,"requestId":"95ad3999-c13c-4399-878f-8903e3e5f328","attempts":1,"totalRetryDelay":0},"Entries":[{"EventId":"4231da73-c966-daf6-9c57-2a8089117d9d"}],"FailedEntryCount":0}
+        "422":
+          description: >-
+            In case of a malformed event or communication failure with
+            LivingDocs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+tags:
+  - name: SNS events
+    description: >-
+      Die Distribution publiziert Events über ein SNS Topic. Eine Subscription
+      auf dieses Topic ist **nur bestimmten AWS Accounts** erlaubt. Um einen AWS
+      Account freizuschalten melde dich beim Lido CMS Team. <br><br> Events
+      werden mit bestimmten [message
+      attributes](https://docs.aws.amazon.com/sns/latest/dg/sns-message-attributes.html)
+      publiziert. Diese Attribute finden sich in der Dokumentation unter
+      "Response samples -> sns-message-attributes/json" (es handelt sich hier
+      auch nicht wirklich um "Webhook"s. Das Dokumentationstool unterstützt
+      keine SNS events, deshalb mussten wir ein bisschen kreativ werden).
+  - name: REST
+    description: REST API die in erster Linie bei der Entwicklung unterstützen soll.
+  - name: Internal
+    description: >-
+      Interne Schnittstellen für die Kommunikation zwischen Livingdocs und der
+      Distribution.
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      name: x-api-key
+      description: >-
+        Für die Kommunikation mit der REST API wird ein API Key benötigt. Dieser
+        findet sich in unserem 1Password Vault.
+      type: apiKey
+      in: header
+  parameters:
+    LivingdocsId:
+      name: livingdocsId
+      description: Unique identifier of a Livingdocs document
+      in: path
+      required: true
+      schema:
+        type: string
+        example: 1736
+  schemas:
+    ImageBase:
+      type: object
+      required:
+        - key
+        - url
+        - width
+        - height
+      properties:
+        mediaId:
+          type: string
+          example: L7Fhcmcw6g3F
+          description: |
+            Id des Bildes der Livingdocs Media Library.
+        originalUrl:
+          type: string
+          example: >-
+            https://livingdocs-evaluation-images.s3.amazonaws.com/2021/11/10/600b1a39-2333-4575-a886-8d193c237922.jpeg
+          description: >
+            Amazon S3 Url des Bildes. Die Buckets sind privat weswegen diese Url
+            nicht öffentlich erreichbar ist.
+        url:
+          type: string
+          example: >-
+            https://livingdocs-evaluation.imgix.net/2021/11/10/600b1a39-2333-4575-a886-8d193c237922.jpeg?w=1024&auto=format
+          description: ImgIx Url des Bildes in der Standard-Breite.
+        width:
+          type: number
+          description: Breite des Originalbildes.
+          example: 1600
+        height:
+          type: number
+          description: Höhe des Originalbildes.
+          example: 900
+        mimeType:
+          type: string
+          example: image/jpeg
+          description: |
+            MimeType des Bildes. z.B. 'image/jpeg'
+        key:
+          type: string
+          example: /2021/11/10/600b1a39-2333-4575-a886-8d193c237922.jpeg
+          description: der Key für die Binärdatei im S3-Bucket
+        imageService:
+          type: string
+          enum:
+            - imgix
+    Crop16x9:
+      type: object
+      required:
+        - name
+        - x
+        - "y"
+        - width
+        - height
+      properties:
+        name:
+          enum:
+            - "16:9"
+        isAutomatic:
+          type: boolean
+        x:
+          type: number
+          example: 0
+        "y":
+          type: number
+          example: 135
+        width:
+          type: number
+          example: 2560
+        height:
+          type: number
+          example: 1440
+      description: >
+        Example imgix url with a crop:
+        https://livingdocs-evaluation.imgix.net/2021/11/10/6948129d-cbec-4b0c-80c4-656d5849d33a.jpeg?rect=0%2C135%2C2560%2C1440&w=1024&auto=format
+    Crop2x3:
+      type: object
+      required:
+        - name
+        - x
+        - "y"
+        - width
+        - height
+      properties:
+        name:
+          enum:
+            - "2:3"
+        isAutomatic:
+          type: boolean
+        x:
+          type: number
+          example: 0
+        "y":
+          type: number
+          example: 135
+        width:
+          type: number
+          example: 2560
+        height:
+          type: number
+          example: 1440
+      description: >
+        Example imgix url with a crop:
+        https://livingdocs-evaluation.imgix.net/2021/11/10/6948129d-cbec-4b0c-80c4-656d5849d33a.jpeg?rect=0%2C135%2C2560%2C1440&w=1024&auto=format
+    Crop50x21:
+      type: object
+      required:
+        - name
+        - x
+        - "y"
+        - width
+        - height
+      properties:
+        name:
+          enum:
+            - "50:21"
+        isAutomatic:
+          type: boolean
+        x:
+          type: number
+          example: 0
+        "y":
+          type: number
+          example: 135
+        width:
+          type: number
+          example: 2560
+        height:
+          type: number
+          example: 1440
+      description: >
+        Example imgix url with a crop:
+        https://livingdocs-evaluation.imgix.net/2021/11/10/6948129d-cbec-4b0c-80c4-656d5849d33a.jpeg?rect=0%2C135%2C2560%2C1440&w=1024&auto=format
+    Strong:
+      type: object
+      description: Marks the text to be displayed in a bold font.
+      required:
+        - type
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          enum:
+            - strong
+    Emphasis:
+      type: object
+      description: Marks the text to be displayed in an italic font.
+      required:
+        - type
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          enum:
+            - emphasis
+    Internal:
+      type: object
+      description: Internal reference to another article
+      required:
+        - type
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          enum:
+            - internalReference
+        documentId:
+          type: string
+          description: Livingdocs document id
+          example: 47399
+        contentType:
+          type: string
+          enum:
+            - article
+    Web:
+      type: object
+      description: The text is a hyperlink.
+      required:
+        - type
+        - href
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          enum:
+            - webReference
+        href:
+          type: string
+          format: uri
+    Mailto:
+      type: object
+      required:
+        - type
+        - href
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          enum:
+            - mailtoReference
+        href:
+          type: string
+          format: uri
+          description: "The full mailto: URL"
+    Text:
+      type: array
+      items:
+        type: object
+        required:
+          - text
+        properties:
+          text:
+            type: string
+          marks:
+            type: array
+            items:
+              type: object
+              anyOf:
+                - $ref: "#/components/schemas/Strong"
+                - $ref: "#/components/schemas/Emphasis"
+                - $ref: "#/components/schemas/Internal"
+                - $ref: "#/components/schemas/Web"
+                - $ref: "#/components/schemas/Mailto"
+    ImageComponent:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - image
+        content:
+          type: object
+          required:
+            - image
+            - imageSource
+          properties:
+            image:
+              type: object
+              allOf:
+                - $ref: "#/components/schemas/ImageBase"
+                - type: object
+                  properties:
+                    crop:
+                      type: object
+                      anyOf:
+                        - $ref: "#/components/schemas/Crop16x9"
+                        - $ref: "#/components/schemas/Crop2x3"
+                        - $ref: "#/components/schemas/Crop50x21"
+            caption:
+              $ref: "#/components/schemas/Text"
+            imageSource:
+              type: string
+    Datawrapper:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - datawrapper
+        content:
+          type: object
+          description: Datawrapper Embed
+          required:
+            - url
+          properties:
+            url:
+              type: string
+              description: >
+                Url that can be resolved via oEmbed / iframely. Example:
+                https://datawrapper.dwcdn.net/GaRgV/1
+    Ercms:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - ercms
+        content:
+          type: object
+          description: SZ Entwicklungsredaktion-Embed
+          required:
+            - url
+          properties:
+            url:
+              type: string
+              description: >
+                Url that can be resolved via internal SZ Api. Example:
+                https://gfx.sueddeutsche.de/apps/e623417/www/
+    Podigee:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - podigee
+        content:
+          type: object
+          description: Podigee Embed
+          required:
+            - url
+            - audioId
+          properties:
+            url:
+              type: string
+              description: >
+                Url that can be resolved via oEmbed / iframely. Example:
+                https://li-test-podcast.podigee.io/1-first-episode
+            audioId:
+              type: string
+              description: Audio Id to fetch the audio file directly
+    Youtube:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - youtube
+        content:
+          type: object
+          description: YouTube Video Embed
+          required:
+            - url
+          properties:
+            url:
+              type: string
+              description: >
+                Url that can be resolved via oEmbed / iframely. Example:
+                https://www.youtube.com/watch?v=Rd5_zk456VY
+    Video:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - video
+        content:
+          type: object
+          description: Video
+          required:
+            - hideAds
+            - key
+            - posterImage
+          properties:
+            hideAds:
+              type: boolean
+            key:
+              type: string
+              example: 2022/03/31/646bd32f-a1db-4cbc-a8b7-a7721074913d.mp4
+            expiryDate:
+              type: string
+              format: date-time
+              example: "2021-03-29T13:55:00.370Z"
+            title:
+              type: string
+            source:
+              type: string
+            posterImage:
+              type: object
+              $ref: "#/components/schemas/ImageBase"
+            posterImageSource:
+              type: string
+    VideoLivestream:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - videoLivestream
+        content:
+          type: object
+          description: Video Livestream Embed
+          required:
+            - html
+            - url
+          properties:
+            html:
+              type: string
+              description: Embed Code
+            url:
+              type: string
+              description: Url to a video file (for native player in the App)
+    BulletListItem:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - bulletListItem
+        content:
+          type: object
+          required:
+            - structuredText
+          properties:
+            structuredText:
+              $ref: "#/components/schemas/Text"
+    ArticleHeader:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - articleHeader
+        content:
+          type: object
+          required:
+            - overline
+            - title
+          properties:
+            overline:
+              type: string
+              description: Dachzeile (oder 'kicker' im Production Hub)
+            title:
+              type: string
+              description: Titel
+            topAsset:
+              type: object
+              oneOf:
+                - $ref: "#/components/schemas/ImageComponent"
+                - $ref: "#/components/schemas/Datawrapper"
+                - $ref: "#/components/schemas/Ercms"
+                - $ref: "#/components/schemas/Podigee"
+                - $ref: "#/components/schemas/Youtube"
+                - $ref: "#/components/schemas/Video"
+                - $ref: "#/components/schemas/VideoLivestream"
+            teaserText:
+              type: string
+              description: Teaser Text (Oder Lead oder Intro)
+            bulletList:
+              type: array
+              items:
+                anyOf:
+                  - $ref: "#/components/schemas/BulletListItem"
+            byline:
+              type: string
+              description: Autorenzeile
+    Crop4x3:
+      type: object
+      required:
+        - name
+        - x
+        - "y"
+        - width
+        - height
+      properties:
+        name:
+          enum:
+            - "4:3"
+        isAutomatic:
+          type: boolean
+        x:
+          type: number
+          example: 0
+        "y":
+          type: number
+          example: 135
+        width:
+          type: number
+          example: 2560
+        height:
+          type: number
+          example: 1440
+      description: >
+        Example imgix url with a crop:
+        https://livingdocs-evaluation.imgix.net/2021/11/10/6948129d-cbec-4b0c-80c4-656d5849d33a.jpeg?rect=0%2C135%2C2560%2C1440&w=1024&auto=format
+    FreeCrop:
+      type: object
+      description: |
+        A free crop can be of any image ratio.
+      required:
+        - name
+        - x
+        - "y"
+        - width
+        - height
+      properties:
+        name:
+          enum:
+            - free
+        isAutomatic:
+          type: boolean
+        x:
+          type: number
+          example: 0
+        "y":
+          type: number
+          example: 135
+        width:
+          type: number
+          example: 2560
+        height:
+          type: number
+          example: 1440
+    BannerImage:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - bannerImage
+        content:
+          type: object
+          required:
+            - image
+            - showTitle
+            - link
+          properties:
+            adHint:
+              type: string
+              enum:
+                - sz
+                - external
+            showTitle:
+              type: boolean
+            link:
+              type: string
+            title:
+              type: string
+            image:
+              type: object
+              allOf:
+                - $ref: "#/components/schemas/ImageBase"
+                - type: object
+                  properties:
+                    crop:
+                      type: object
+                      anyOf:
+                        - $ref: "#/components/schemas/Crop16x9"
+                        - $ref: "#/components/schemas/Crop4x3"
+                        - $ref: "#/components/schemas/Crop50x21"
+                        - $ref: "#/components/schemas/FreeCrop"
+    Subheading:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - subheading
+        content:
+          type: object
+          required:
+            - text
+          properties:
+            text:
+              type: string
+    Paragraph:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - paragraph
+        content:
+          type: object
+          required:
+            - structuredText
+          properties:
+            structuredText:
+              $ref: "#/components/schemas/Text"
+    BulletList:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - bulletList
+        content:
+          type: object
+          required:
+            - list
+          properties:
+            list:
+              type: array
+              items:
+                anyOf:
+                  - $ref: "#/components/schemas/BulletListItem"
+    ImageGallery:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - imageGallery
+        content:
+          type: object
+          properties:
+            list:
+              type: array
+              items:
+                anyOf:
+                  - $ref: "#/components/schemas/ImageComponent"
+                  - $ref: "#/components/schemas/Paragraph"
+    Twitter:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - twitter
+        content:
+          type: object
+          description: Twitter Embed
+          required:
+            - url
+          properties:
+            url:
+              type: string
+              description: >
+                Url that can be resolved via oEmbed / iframely. Example:
+                https://twitter.com/giantcat9/status/1460338930956525576
+    Facebook:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - facebook
+        content:
+          type: object
+          description: Facebook Embed
+          required:
+            - url
+          properties:
+            url:
+              type: string
+              description: >
+                Url that can be resolved via oEmbed / iframely. Example:
+                https://www.facebook.com/20531316728/posts/10154009990506729/
+    Instagram:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - instagram
+        content:
+          type: object
+          description: Instagram Embed
+          required:
+            - url
+          properties:
+            url:
+              type: string
+              description: >
+                Url that can be resolved via oEmbed / iframely. Example:
+                https://www.instagram.com/p/CYLu8z0Ka2_
+    Spotify:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - spotify
+        content:
+          type: object
+          description: Spotify Embed
+          required:
+            - url
+          properties:
+            url:
+              type: string
+              description: >
+                Url that can be resolved via oEmbed / iframely. Example:
+                https://open.spotify.com/track/24ntSW3QVJzR79lHAAOTaY?si=180387001f6a497b
+    Tickaroo:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - tickaroo
+        content:
+          type: object
+          description: Tickaroo Embed
+          required:
+            - inOrder
+            - hideEventMeta
+            - coalesceRepeatedMeta
+            - liveblogId
+          properties:
+            inOrder:
+              type: boolean
+              description: >
+                Chronologisch anzeigen - bei der Tickaroo Suche wird
+                reverseEvents=true als Default gesetzt.
+            hideEventMeta:
+              type: boolean
+              description: >
+                Autor nicht anzeigen - hide statt showEventMeta (Tickaroo
+                Parameter)
+            coalesceRepeatedMeta:
+              type: boolean
+              description: |
+                Autor nur einmal anzeigen (Tickaroo Parameter)
+            liveblogId:
+              type: string
+              description: >
+                An iframely capable url can be constructed like this:
+                `https://widgets.tickaroo.com/widgets/ticker/${liveblogId}?clientId=${clientId}`.
+                Example liveblogId: 570ce4180f156038d39285ce
+    InlineVideo:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      description: Ein Inline Video verweist auf einen Video Artikel.
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - inlineVideo
+        content:
+          type: object
+          required:
+            - documentId
+          description: Inhalt des Inline Videos
+          properties:
+            documentId:
+              type: string
+              description: Id des Video-Artikels
+    IncludeModule:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - includemodule
+        content:
+          type: object
+          description: Include Modul aus Polopoly
+          required:
+            - includeModuleType
+            - url
+            - hideInApp
+            - hideOnMobileWebsite
+            - hideOnDesktopWebsite
+          properties:
+            includeModuleType:
+              type: string
+              enum:
+                - sports
+                - dpa_elections
+                - newsletter
+                - chessquiz
+                - energy
+              description: Der Typ des Include-Moduls
+            url:
+              type: string
+              description: Die URL für den iFrame
+            desktopUrl:
+              type: string
+              description: Die URL für nicht responsive iFrames
+            height:
+              type: number
+              example: 600
+              description: Die Höhe für den iFrame
+            desktopHeight:
+              type: number
+              example: 800
+              description: Die Höhe für nicht responsive iFrames
+            hideInApp:
+              type: boolean
+              description: Include-Modul soll in der App ausgeblendet werden
+            hideOnMobileWebsite:
+              type: boolean
+              description: Include-Modul soll auf der mobilen Webseite ausgeblendet werden
+            hideOnDesktopWebsite:
+              type: boolean
+              description: Include-Modul soll auf der desktop Webseite ausgeblendet werden
+    Teaser:
+      type: object
+      required:
+        - teaser
+      properties:
+        teaser:
+          type: object
+          description: >-
+            Teaser ist eine Referenz auf ein anderes Dokument (Artikel, Embed
+            oder Include Modul)
+          required:
+            - documentId
+          properties:
+            documentId:
+              type: string
+              example: "3682"
+              description: Livingdocs Document Id
+    ArticleRecommendation:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - articleRecommendation
+        content:
+          $ref: "#/components/schemas/Teaser"
+    Department:
+      type: object
+      description: Ressort
+      required:
+        - id
+        - path
+      properties:
+        id:
+          type: string
+          description: Ressort Id z.B. `"Bayern"`
+          example: Bayern
+        path:
+          type: string
+          description: Pfad z.B. `"/bayern"`
+          example: /bayern
+    MainTopic:
+      type: string
+      description: Hauptthema
+    Topics:
+      type: array
+      description: Themen
+      items:
+        type: string
+    ArticleType:
+      type: string
+      enum:
+        - standard
+        - opinion
+        - bta
+        - video
+        - audio
+      description: Artikel Typ
+    TeaserPrefix:
+      type: string
+      enum:
+        - live
+        - exclusive
+      description: Artikel Auszeichnung
+    Overline:
+      type: string
+      description: |
+        Dachzeile (auch 'kicker' genannt im Production Hub)
+    Title:
+      type: string
+      description: Titel
+    TeaserText:
+      type: string
+      description: |
+        Teaser Text (auch 'lead' oder 'summary' genannt)
+    Byline:
+      type: string
+      description: Autorenzeile
+      example: Von Klaus Ott, Jörg Schmitt und Nils Wischmeyer
+    AuthorReference:
+      type: object
+      description: |
+        Autoren
+      required:
+        - references
+      properties:
+        $ref:
+          type: string
+          enum:
+            - documents
+        references:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                description: |
+                  Livingdocs Id der Autoren Data-Records
+    Source:
+      type: string
+      description: Quelle (z.B. DPA)
+    Placemark:
+      type: string
+      description: Ort
+      example: Köln
+    TeaserImageSource:
+      type: string
+      description: Bildquelle des Teaser Bilds
+    PayCategory:
+      type: string
+      description: Paywall Einstellung
+      enum:
+        - free
+        - metered
+        - paid
+    SortDate:
+      type: string
+      format: date-time
+      example: "2021-11-25T14:35:08.370Z"
+      description: |
+        Sort date
+    ShowInGeneratedLists:
+      type: boolean
+      description: In automatischen Listen anzeigen
+      example: false
+    LuxId:
+      type: string
+      description: Lux Id
+    PolopolyId:
+      type: string
+      description: Polopoly Id
+    PrimaryId:
+      type: string
+      description: Primary Id
+    ArticleMetadata:
+      type: object
+      required:
+        - department
+        - mainTopic
+        - topics
+        - articleType
+        - overline
+        - title
+        - authors
+        - source
+        - payCategory
+        - showReaderDialog
+        - hideAds
+        - sortDate
+        - showInGeneratedLists
+        - primaryId
+        - origin
+        - path
+      properties:
+        department:
+          $ref: "#/components/schemas/Department"
+        mainTopic:
+          $ref: "#/components/schemas/MainTopic"
+        topics:
+          $ref: "#/components/schemas/Topics"
+        articleType:
+          $ref: "#/components/schemas/ArticleType"
+        teaserPrefix:
+          $ref: "#/components/schemas/TeaserPrefix"
+        overline:
+          $ref: "#/components/schemas/Overline"
+        title:
+          $ref: "#/components/schemas/Title"
+        teaserText:
+          $ref: "#/components/schemas/TeaserText"
+        byline:
+          $ref: "#/components/schemas/Byline"
+        authors:
+          $ref: "#/components/schemas/AuthorReference"
+        source:
+          $ref: "#/components/schemas/Source"
+        placemark:
+          $ref: "#/components/schemas/Placemark"
+        teaserImage:
+          type: object
+          required:
+            - crops
+          allOf:
+            - $ref: "#/components/schemas/ImageBase"
+            - type: object
+              properties:
+                crops:
+                  type: array
+                  items:
+                    anyOf:
+                      - $ref: "#/components/schemas/Crop16x9"
+                      - $ref: "#/components/schemas/Crop4x3"
+                      - $ref: "#/components/schemas/Crop50x21"
+        teaserImageSource:
+          $ref: "#/components/schemas/TeaserImageSource"
+        payCategory:
+          $ref: "#/components/schemas/PayCategory"
+        showReaderDialog:
+          type: boolean
+        sortDate:
+          $ref: "#/components/schemas/SortDate"
+        showInGeneratedLists:
+          $ref: "#/components/schemas/ShowInGeneratedLists"
+        hideAds:
+          type: boolean
+          description: Werbung ausblenden
+        seoUrl:
+          type: string
+        googleTitle:
+          type: string
+        googleTeaser:
+          type: string
+        tweetText:
+          type: string
+        luxId:
+          $ref: "#/components/schemas/LuxId"
+        polopolyId:
+          $ref: "#/components/schemas/PolopolyId"
+        primaryId:
+          $ref: "#/components/schemas/PrimaryId"
+        path:
+          type: string
+          description: >-
+            Pfad für URL Konstruktion z.B.
+            `"/sport/1860-gewinnt-champions-league-li.1000"`
+        origin:
+          type: string
+          description: Ursprungs-System z.B. `"li"`, `"lux"`, `"sz"`
+    Systemdata:
+      type: object
+      required:
+        - contentType
+        - documentId
+        - publicationId
+        - updateAt
+      properties:
+        contentType:
+          type: string
+          enum:
+            - article
+            - author
+            - departmentPage
+            - externalLink
+            - szPlus
+            - teaserList
+            - topicPage
+        documentId:
+          type: string
+          description: >
+            Livingdocs-Id. Eindeutige Id des Dokuments. Diese Id wird in Apis
+            und Referenzen verwendet um Livingdocs Dokumente zu bezeichnen.
+        publicationId:
+          type: number
+          description: >
+            Livingdocs Publikations-Id. Jedes Dokument kann mehrmals publiziert
+            werden und jede dieser Publikationen erhält eine eigene Id.
+        firstPublicationDate:
+          type: string
+          format: date-time
+          example: "2021-11-25T14:35:08.370Z"
+          description: |
+            Datum wann das Dokument zum ersten mal publiziert wurde.
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2021-11-29T19:34:24.191Z"
+          description: >
+            Datum wann das Dokument zum letzten mal publiziert wurde. Im Falle
+            einer Erstpublikation ist dieses Datum identisch mit
+            firstPublicationDate.
+    Article:
+      type: object
+      description: The full document with metadata, content and resolved references
+      required:
+        - content
+        - metadata
+        - systemdata
+      properties:
+        content:
+          type: array
+          description: |
+            Komponenten mit dem Dokumenteninhalt.
+          items:
+            anyOf:
+              - $ref: "#/components/schemas/ArticleHeader"
+              - $ref: "#/components/schemas/BannerImage"
+              - $ref: "#/components/schemas/Subheading"
+              - $ref: "#/components/schemas/Paragraph"
+              - $ref: "#/components/schemas/BulletList"
+              - $ref: "#/components/schemas/ImageGallery"
+              - $ref: "#/components/schemas/ImageComponent"
+              - $ref: "#/components/schemas/Youtube"
+              - $ref: "#/components/schemas/Twitter"
+              - $ref: "#/components/schemas/Facebook"
+              - $ref: "#/components/schemas/Instagram"
+              - $ref: "#/components/schemas/Spotify"
+              - $ref: "#/components/schemas/Datawrapper"
+              - $ref: "#/components/schemas/Ercms"
+              - $ref: "#/components/schemas/Tickaroo"
+              - $ref: "#/components/schemas/Podigee"
+              - $ref: "#/components/schemas/InlineVideo"
+              - $ref: "#/components/schemas/VideoLivestream"
+              - $ref: "#/components/schemas/IncludeModule"
+              - $ref: "#/components/schemas/ArticleRecommendation"
+        metadata:
+          $ref: "#/components/schemas/ArticleMetadata"
+        systemdata:
+          $ref: "#/components/schemas/Systemdata"
+    Crop1x1:
+      type: object
+      required:
+        - name
+        - x
+        - "y"
+        - width
+        - height
+      properties:
+        name:
+          enum:
+            - "1:1"
+        isAutomatic:
+          type: boolean
+        x:
+          type: number
+          example: 0
+        "y":
+          type: number
+          example: 135
+        width:
+          type: number
+          example: 2560
+        height:
+          type: number
+          example: 1440
+      description: >
+        Example imgix url with a crop:
+        https://livingdocs-evaluation.imgix.net/2021/11/10/6948129d-cbec-4b0c-80c4-656d5849d33a.jpeg?rect=0%2C135%2C2560%2C1440&w=1024&auto=format
+    AuthorMetadata:
+      type: object
+      description: Metadaten eines Autoren
+      required:
+        - hideAuthor
+      properties:
+        hideAuthor:
+          type: boolean
+          description: Autorenprofil anzeigen
+        position:
+          type: string
+          description: Position
+        title:
+          type: string
+          description: Titel
+        firstname:
+          type: string
+          description: Vorname
+        lastname:
+          type: string
+          description: Nachname
+        abbreviation:
+          type: string
+          description: Autorenkürzel
+        description:
+          type: string
+          description: Beschreibung
+        authorImage:
+          type: object
+          required:
+            - crops
+          allOf:
+            - $ref: "#/components/schemas/ImageBase"
+            - type: object
+              properties:
+                crops:
+                  type: array
+                  items:
+                    anyOf:
+                      - $ref: "#/components/schemas/Crop1x1"
+        email:
+          type: string
+          description: E-Mail
+        facebook:
+          type: string
+          description: Facebook
+        twitter:
+          type: string
+          description: Twitter
+        vgwortId:
+          type: string
+          description: VGWort ID
+        vgwortFirstname:
+          type: string
+          description: Vorname des VG Wort Autoren
+        vgwordLastname:
+          type: string
+          description: Nachname des VG Wort Autoren
+        primaryId:
+          $ref: "#/components/schemas/PrimaryId"
+        path:
+          type: string
+          description: Pfad für URL Konstruktion z.B. `"/autoren/thorsten-denkler-1.14928"`
+        origin:
+          type: string
+          description: Ursprungs-System z.B. `"li"`, `"lux"`, `"sz"`
+    Author:
+      type: object
+      required:
+        - metadata
+        - systemdata
+      properties:
+        systemdata:
+          $ref: "#/components/schemas/Systemdata"
+        metadata:
+          $ref: "#/components/schemas/AuthorMetadata"
+    TextLinkList:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - textLinkList
+        content:
+          type: object
+          required:
+            - title
+            - list
+          description: Text Link Liste
+          properties:
+            title:
+              type: string
+            closingLine:
+              $ref: "#/components/schemas/Text"
+            adHint:
+              type: string
+              enum:
+                - sz
+                - external
+            list:
+              type: array
+              items:
+                type: object
+                required:
+                  - id
+                  - component
+                  - content
+                properties:
+                  id:
+                    type: string
+                  component:
+                    type: string
+                    enum:
+                      - textLinkListItem
+                  content:
+                    required:
+                      - structuredText
+                    type: object
+                    properties:
+                      structuredText:
+                        $ref: "#/components/schemas/Text"
+    GroupZero:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - groupZero
+        content:
+          type: object
+          required:
+            - children
+          description: Inhalt der Teaser Grupp 0 - nur für Mobile
+          properties:
+            children:
+              type: array
+              items:
+                anyOf:
+                  - $ref: "#/components/schemas/IncludeModule"
+                  - $ref: "#/components/schemas/TextLinkList"
+                  - $ref: "#/components/schemas/BannerImage"
+    PageHeading:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - pageHeading
+        content:
+          type: object
+          required:
+            - title
+          properties:
+            title:
+              type: string
+    HideImage:
+      type: object
+      required:
+        - hideImage
+      properties:
+        hideImage:
+          type: boolean
+          example: false
+          description: Rendering information to hide the image of a teaser
+    ArticleTeaserXL:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - articleTeaserXL
+        content:
+          type: object
+          allOf:
+            - $ref: "#/components/schemas/Teaser"
+            - $ref: "#/components/schemas/HideImage"
+    ArticleTeaserL:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - articleTeaserL
+        content:
+          type: object
+          allOf:
+            - $ref: "#/components/schemas/Teaser"
+            - $ref: "#/components/schemas/HideImage"
+    ArticleTeaserM:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - articleTeaserM
+        content:
+          type: object
+          allOf:
+            - $ref: "#/components/schemas/Teaser"
+            - $ref: "#/components/schemas/HideImage"
+    ArticleTeaserS:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - articleTeaserS
+        content:
+          type: object
+          allOf:
+            - $ref: "#/components/schemas/Teaser"
+            - $ref: "#/components/schemas/HideImage"
+    ArticleTeaserXS:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - articleTeaserXS
+        content:
+          $ref: "#/components/schemas/Teaser"
+    TeaserGroup:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - teaserGroup
+        content:
+          type: object
+          description: Inhalt der Teasergruppe
+          required:
+            - children
+          properties:
+            children:
+              type: array
+              items:
+                anyOf:
+                  - $ref: "#/components/schemas/BannerImage"
+                  - $ref: "#/components/schemas/ArticleTeaserXL"
+                  - $ref: "#/components/schemas/ArticleTeaserL"
+                  - $ref: "#/components/schemas/ArticleTeaserM"
+                  - $ref: "#/components/schemas/ArticleTeaserS"
+                  - $ref: "#/components/schemas/ArticleTeaserXS"
+                  - $ref: "#/components/schemas/Ercms"
+                  - $ref: "#/components/schemas/Datawrapper"
+                  - $ref: "#/components/schemas/Podigee"
+                  - $ref: "#/components/schemas/IncludeModule"
+                  - $ref: "#/components/schemas/TextLinkList"
+    TitleTopicGroup:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - titleTopicGroup
+        content:
+          required:
+            - title
+            - documentId
+          type: object
+          description: Inhalt der Titel-Themenklammer
+          properties:
+            title:
+              type: string
+              description: Titel der Titel-Themenklammer
+            documentId:
+              type: string
+              description: Id der Teaser-Liste
+    LogoTopicGroup:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - logoTopicGroup
+        content:
+          type: object
+          required:
+            - logo
+            - documentId
+          description: Inhalt der Logo-Themenklammer
+          properties:
+            logo:
+              type: string
+              enum:
+                - magazin
+                - rezepte
+                - jetzt
+            documentId:
+              type: string
+              description: Id der Teaser-Liste
+    DepartmentGroup:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - departmentGroup
+        content:
+          type: object
+          description: Inhalt des Ressortaufmachers
+          required:
+            - departmentId
+          properties:
+            departmentId:
+              type: string
+              description: Id des Ressorts
+            teaserCount:
+              type: number
+              description: Anzahl sichtbarer Teaser
+    BreakingNewsGroup:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - breakingNewsGroup
+        content:
+          type: object
+          description: Inhalt der Eilmeldung
+          required:
+            - children
+          properties:
+            children:
+              type: array
+              items:
+                anyOf:
+                  - $ref: "#/components/schemas/BannerImage"
+                  - $ref: "#/components/schemas/ArticleTeaserXL"
+                  - $ref: "#/components/schemas/ArticleTeaserL"
+                  - $ref: "#/components/schemas/ArticleTeaserM"
+                  - $ref: "#/components/schemas/ArticleTeaserS"
+                  - $ref: "#/components/schemas/ArticleTeaserXS"
+                  - $ref: "#/components/schemas/Ercms"
+                  - $ref: "#/components/schemas/Datawrapper"
+                  - $ref: "#/components/schemas/Podigee"
+                  - $ref: "#/components/schemas/IncludeModule"
+                  - $ref: "#/components/schemas/TextLinkList"
+    SZPlusGroup:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - szPlusGroup
+        content:
+          type: object
+          required:
+            - documentId
+          description: Inhalt des Interaktiven Editorials
+          properties:
+            documentId:
+              type: string
+              description: Id des interaktiven Editorials
+    DepartmentPageMetadata:
+      type: object
+      description: Metadaten einer Departmentpage
+      required:
+        - title
+        - path
+        - department
+      properties:
+        title:
+          type: string
+          description: Titel der Departmentpage
+        department:
+          $ref: "#/components/schemas/Department"
+        parentDepartment:
+          $ref: "#/components/schemas/Department"
+        email:
+          type: string
+          description: E-Mail Adresse für Leseranfragen
+        hideAds:
+          type: boolean
+          description: Werbung ausblenden
+        path:
+          type: string
+          description: Pfad für URL Konstruktion z.B. `"/bayern"`
+    DepartmentPage:
+      type: object
+      required:
+        - content
+        - metadata
+        - systemdata
+      properties:
+        content:
+          type: array
+          description: |
+            Komponenten mit dem Dokumenteninhalt.
+          items:
+            anyOf:
+              - $ref: "#/components/schemas/GroupZero"
+              - $ref: "#/components/schemas/PageHeading"
+              - $ref: "#/components/schemas/TeaserGroup"
+              - $ref: "#/components/schemas/TitleTopicGroup"
+              - $ref: "#/components/schemas/LogoTopicGroup"
+              - $ref: "#/components/schemas/DepartmentGroup"
+              - $ref: "#/components/schemas/BreakingNewsGroup"
+              - $ref: "#/components/schemas/Ercms"
+              - $ref: "#/components/schemas/Datawrapper"
+              - $ref: "#/components/schemas/Podigee"
+              - $ref: "#/components/schemas/IncludeModule"
+              - $ref: "#/components/schemas/SZPlusGroup"
+        systemdata:
+          $ref: "#/components/schemas/Systemdata"
+        metadata:
+          $ref: "#/components/schemas/DepartmentPageMetadata"
+    TopicDescription:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - topicDescription
+        content:
+          type: object
+          required:
+            - title
+          properties:
+            title:
+              type: string
+            description:
+              $ref: "#/components/schemas/Text"
+    TopicPageMetadata:
+      type: object
+      description: Metadaten einer Themenseite
+      required:
+        - topic
+        - path
+        - hideAds
+        - department
+      properties:
+        topic:
+          type: string
+          description: Thema
+        department:
+          $ref: "#/components/schemas/Department"
+        hideAds:
+          type: boolean
+          description: Werbung ausblenden
+        googleTitle:
+          type: string
+        googleTeaser:
+          type: string
+        path:
+          type: string
+          description: Pfad für URL Konstruktion z.B. `"/thema/Klimawandel"`
+    TopicPage:
+      type: object
+      required:
+        - metadata
+        - systemdata
+      properties:
+        content:
+          type: array
+          description: |
+            Komponenten mit dem Dokumenteninhalt.
+          items:
+            anyOf:
+              - $ref: "#/components/schemas/TopicDescription"
+              - $ref: "#/components/schemas/TeaserGroup"
+              - $ref: "#/components/schemas/TitleTopicGroup"
+              - $ref: "#/components/schemas/LogoTopicGroup"
+              - $ref: "#/components/schemas/BreakingNewsGroup"
+              - $ref: "#/components/schemas/Ercms"
+              - $ref: "#/components/schemas/Datawrapper"
+              - $ref: "#/components/schemas/Podigee"
+              - $ref: "#/components/schemas/IncludeModule"
+        systemdata:
+          $ref: "#/components/schemas/Systemdata"
+        metadata:
+          $ref: "#/components/schemas/TopicPageMetadata"
+    ExternalLinkMetadata:
+      type: object
+      description: Metadata of an external link
+      required:
+        - department
+        - mainTopic
+        - overline
+        - title
+        - teaserText
+        - externalLink
+        - topics
+        - payCategory
+        - showInGeneratedLists
+        - sortDate
+        - authors
+      properties:
+        department:
+          type: object
+          description: Ressort
+          properties:
+            id:
+              type: string
+              description: Ressort
+              example: Politik
+            path:
+              type: string
+              description: Pfad
+              example: /politik
+        overline:
+          type: string
+          description: Dachzeile
+        topics:
+          type: array
+          description: Themen
+          items:
+            type: string
+        title:
+          type: string
+          description: Titel
+        teaserText:
+          type: string
+          description: Teaser
+        externalLink:
+          type: string
+          description: Ziel-URL
+        mainTopic:
+          type: string
+          description: Leitthema
+        payCategory:
+          $ref: "#/components/schemas/PayCategory"
+        showInGeneratedLists:
+          $ref: "#/components/schemas/ShowInGeneratedLists"
+        sortDate:
+          type: string
+          format: date-time
+          example: "2021-11-25T14:35:08.370Z"
+          description: sortDate
+        polopolyId:
+          type: string
+          description: Polopoly Id
+        teaserImage:
+          type: object
+          required:
+            - crops
+          allOf:
+            - $ref: "#/components/schemas/ImageBase"
+            - type: object
+              properties:
+                crops:
+                  type: array
+                  items:
+                    anyOf:
+                      - $ref: "#/components/schemas/Crop16x9"
+                      - $ref: "#/components/schemas/Crop4x3"
+                      - $ref: "#/components/schemas/Crop50x21"
+        teaserImageSource:
+          type: string
+          description: Bildquelle
+        teaserPrefix:
+          $ref: "#/components/schemas/TeaserPrefix"
+        byline:
+          type: string
+          description: Autorenzeile
+        authors:
+          $ref: "#/components/schemas/AuthorReference"
+    ExternalLink:
+      type: object
+      description: The external link data containing systemdata and metadata
+      required:
+        - metadata
+        - systemdata
+      properties:
+        systemdata:
+          $ref: "#/components/schemas/Systemdata"
+        metadata:
+          $ref: "#/components/schemas/ExternalLinkMetadata"
+    TeaserOverride:
+      type: object
+      properties:
+        overrides:
+          type: object
+          required:
+            - content
+          description: Überschriebene Informationen vom referenziertem Objekt
+          properties:
+            content:
+              type: object
+              required:
+                - overline
+                - title
+                - teaserText
+                - image
+              properties:
+                overline:
+                  type: string
+                  description: Dachzeile (oder 'kicker' im Production Hub)
+                title:
+                  type: string
+                  description: Titel
+                teaserText:
+                  type: string
+                image:
+                  type: object
+                  allOf:
+                    - $ref: "#/components/schemas/ImageBase"
+                    - type: object
+                      properties:
+                        crop:
+                          type: object
+                          anyOf:
+                            - $ref: "#/components/schemas/Crop16x9"
+    SZPlusArticleTeaserInclude:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - szPlusArticleTeaserInclude
+        content:
+          type: object
+          allOf:
+            - $ref: "#/components/schemas/Teaser"
+            - $ref: "#/components/schemas/TeaserOverride"
+    WebTeaser:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - webTeaser
+        content:
+          type: object
+          required:
+            - overline
+            - title
+            - teaserText
+            - image
+            - link
+          properties:
+            overline:
+              type: string
+            title:
+              type: string
+            teaserText:
+              type: string
+            image:
+              type: object
+              allOf:
+                - $ref: "#/components/schemas/ImageBase"
+                - type: object
+                  properties:
+                    crop:
+                      type: object
+                      anyOf:
+                        - $ref: "#/components/schemas/Crop16x9"
+            link:
+              type: string
+              description: Url of the external content
+    SZPlusMetadata:
+      type: object
+      description: Metadaten des Interaktiven Editorials
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          description: Titel des Interaktiven Editorials
+    SZPlus:
+      type: object
+      required:
+        - metadata
+        - content
+        - systemdata
+      properties:
+        content:
+          type: object
+          description: >
+            Das interaktive Editorial mit fixen Artikeln die immer ausgespielt
+            werden sollen und einem Pool an flexiblen Artikeln
+          required:
+            - fixed
+            - pool
+          properties:
+            fixed:
+              type: array
+              items:
+                anyOf:
+                  - $ref: "#/components/schemas/SZPlusArticleTeaserInclude"
+                  - $ref: "#/components/schemas/WebTeaser"
+            pool:
+              type: array
+              items:
+                anyOf:
+                  - $ref: "#/components/schemas/SZPlusArticleTeaserInclude"
+                  - $ref: "#/components/schemas/WebTeaser"
+        systemdata:
+          $ref: "#/components/schemas/Systemdata"
+        metadata:
+          $ref: "#/components/schemas/SZPlusMetadata"
+    TeaserListContent:
+      type: object
+      required:
+        - id
+        - component
+        - content
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+          enum:
+            - teaserList
+        content:
+          type: object
+          required:
+            - children
+          properties:
+            children:
+              type: array
+              items:
+                $ref: "#/components/schemas/Teaser"
+    TeaserListMetadata:
+      type: object
+      description: Metadaten einer Banderolen-Seite
+      required:
+        - documentName
+      properties:
+        documentName:
+          type: string
+          description: Name der Banderolen-Seite
+    TeaserList:
+      type: object
+      required:
+        - content
+        - metadata
+        - systemdata
+      properties:
+        content:
+          $ref: "#/components/schemas/TeaserListContent"
+        systemdata:
+          $ref: "#/components/schemas/Systemdata"
+        metadata:
+          $ref: "#/components/schemas/TeaserListMetadata"
+    Document:
+      type: object
+      description: The full document with metadata, content and resolved references
+      oneOf:
+        - $ref: "#/components/schemas/Article"
+        - $ref: "#/components/schemas/Author"
+        - $ref: "#/components/schemas/DepartmentPage"
+        - $ref: "#/components/schemas/TopicPage"
+        - $ref: "#/components/schemas/ExternalLink"
+        - $ref: "#/components/schemas/SZPlus"
+        - $ref: "#/components/schemas/TeaserList"
+x-webhooks:
+  publish:
+    post:
+      tags:
+        - SNS events
+      summary: Document published
+      description: Ein Dokument wurde publiziert.
+      operationId: eventDocumentPublished
+      responses:
+        "200":
+          description: The full document with metadata, content and resolved references
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Document"
+            sns-message-attributes/json:
+              schema:
+                type: object
+                required:
+                  - contentType
+                  - documentId
+                  - operation
+                  - recipient
+                  - origin
+                properties:
+                  contentType:
+                    description: type of the document
+                    type: string
+                    enum:
+                      - article
+                      - author
+                      - externalLink
+                    example: article
+                  documentId:
+                    description: |
+                      Livingdocs-Id. Unique identifier for the document.
+                    type: string
+                    enum:
+                      - "3124"
+                  operation:
+                    description: what sort of operation triggered the publication
+                    enum:
+                      - publish
+                      - unpublish
+                      - update
+                    type: string
+                    example: publish
+                  recipient:
+                    description: the intended recipient of the event
+                    enum:
+                      - all
+                      - pay
+                      - online
+                      - data-science
+                    type: string
+                    example: all
+                  origin:
+                    description: the origin of the event
+                    enum:
+                      - sz
+                    type: string
+                    example: sz
+        "418":
+          description: (Placeholder - SNS events don't have status codes)

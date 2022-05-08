@@ -1,0 +1,22 @@
+type: object
+required:
+  - id
+  - component
+  - content
+properties:
+  id:
+    type: string
+  component:
+    type: string
+    enum: [youtube]
+  content:
+    type: object
+    description: YouTube Video Embed
+    required:
+      - url
+    properties:
+      url:
+        type: string
+        description: >
+          Url des Youtube-Videos
+          Beispiel: https://www.youtube.com/watch?v=Rd5_zk456VY

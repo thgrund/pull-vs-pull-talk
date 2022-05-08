@@ -1,0 +1,19 @@
+parameters:
+  - $ref: "params/id.yaml"
+get:
+  tags:
+    - REST
+  summary: Get a single document by its id
+  security:
+    - ApiKeyAuth: []
+  operationId: documentGet
+  responses:
+    200:
+      description: The full document with metadata, content and resolved references
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "../schemas/contentTypes/Document.yaml"
+    404:
+      description: The requested document does not exist.

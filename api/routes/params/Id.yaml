@@ -1,0 +1,7 @@
+name: id
+description: Unique identifier of a document
+in: path
+required: true
+schema:
+  type: string
+  example: 1736
